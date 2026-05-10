@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n-key="title">Andy's Dictionary App</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='icons/dict.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons/css/flag-icons.mi">
+    <script src="{{ url_for('static', filename='translations.js') }}" defer></script>
+</head>
+<body>
+    <div style="max-width: 900px; margin: 20px auto; padding: 10px;">
+
+        <!-- Search form -->
+        <form action="/search" method="POST" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+
+            <!-- Dropdowns in a table on the right -->
+            <table style="border-collapse: collapse; table-layout: fixed; width: 100%;">
+                <colgroup>
+                    <col style="width: 15%; min-width: 100px;">
+                    <col style="width: 55%;">
+                    <col style="width: 15%; min-width: 80px;">
+                    <col style="width: 15%; min-width: 80px;">
+                </colgroup>
+                <tr>
+                    <th style="padding: 5px; text-align: left;" data-i18n-key="display_label">Display:</th>
+                    <th style="padding: 5px; text-align: left;" data-i18n-key="search_label">Search:</th>
+                    <th style="padding: 5px; text-align: left;" data-i18n-key="from_label">From:</th>
+                    <th style="padding: 5px; text-align: left;" data-i18n-key="to_label">To:</th>
+                </tr>
+                <tr>
+                    <td style="padding: 5px; vertical-align: top;">
+                        <select name="display_language" onchange="this.form.submit()" style="padding: 5px; width: 100%;">
+                            {% for code, emoji, name in languages %}
+                                <option value="{{ code }}" {% if display_lang == code %}selected{% endif %}>
+                                    {{ emoji }} {{ name }} ({{ code }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 5px;">
+                        <input type="text"
+                            name="search_term"
+                            data-i18n-key="please_enter"
+                            value="{{ search_term }}"
+                            size="30"
+                            autofocus
+                            style="padding: 5px; width: 100%; box-sizing: border-box;">
+                    </td>
+                    <td style="padding: 5px;">
+                        <select name="from_language" onchange="this.form.submit()" style="padding: 5px; width: 100%;">
+                            {% for code, emoji, name in languages %}
+                                <option value="{{ code }}" {% if from_lang == code %}selected{% endif %}>
+                                    {{ emoji }} {{ name }} ({{ code }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td style="padding: 5px;">
+                        <select name="to_language" onchange="this.form.submit()" style="padding: 5px; width: 100%;">
+                            {% for code, emoji, name in languages %}
+                                <option value="{{ code }}" {% if to_lang == code %}selected{% endif %}>
+                                    {{ emoji }} {{ name }} ({{ code }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td style="padding: 5px; text-align: left;">
+                        <button type="submit" id="searchButton" data-i18n-key="search_button" style="padding: 5px; width: 100%;">
+                            SEARCH 🔍
+                        </button>
+                    </td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </table>
+
+        </form>
+
+        <!-- Results -->
+        <div style="margin-top: 20px;">
+            {% if search_term %}
+                <h2 style="text-align: center;" id="searchResults" data-i18n-key="search_results">
+                    Search Results for "{{ search_term }}"
+                </h2>
+            {% endif %}
+
+            {% if entries %}
+                {% for entry in entries %}
+                    <h3 data-i18n-key="language_label">Language: {{ entry.lang }}</h3>
+                    <ul>
+                        {% for hit in entry.hits %}
+
+                            {# Case 1: Example/sentence translations #}
+                            {% if hit.type == "translation" %}
+                                <li>
+                                    <span class="example-source">{{ hit.source|safe }}</span> →
+                                    <span class="example-target">{{ hit.target|safe }}</span>
+                                </li>
+
+                            {# Case 2: Entry with secondary entries #}
+                            {% elif hit.type == "entry_with_secondary_entries" %}
+                                <li>
+                                    <strong>Primary Entry:</strong>
+                                    <ul>
+                                        {% for rom in hit.primary_entry.roms %}
+                                            <li>
+                                                <strong>{{ rom.headword }}</strong>
+                                                {% if rom.wordclass %} ({{ rom.wordclass }}) {% endif %}
+                                                <ul>
+                                                    {% for arab in rom.arabs %}
+                                                        {% if arab.header %}
+                                                            <li><em>{{ arab.header|safe }}</em></li>
+                                                        {% endif %}
+                                                        <ul>
+                                                            {% for tr in arab.translations %}
+                                                                <li>{{ tr.source|safe }} → {{ tr.target|safe }}</li>
+                                                            {% endfor %}
+                                                        </ul>
+                                                    {% endfor %}
+                                                </ul>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+
+                                    {% if hit.secondary_entries %}
+                                        <strong>Secondary Entries:</strong>
+                                        <ul>
+                                            {% for sec in hit.secondary_entries %}
+                                                {% for rom in sec.roms %}
+                                                    <li>
+                                                        <strong>{{ rom.headword }}</strong>
+                                                        {% if rom.wordclass %} ({{ rom.wordclass }}) {% endif %}
+                                                        <ul>
+                                                            {% for arab in rom.arabs %}
+                                                                {% if arab.header %}
+                                                                    <li><em>{{ arab.header|safe }}</em></li>
+                                                                {% endif %}
+                                                                <ul>
+                                                                    {% for tr in arab.translations %}
+                                                                        <li>{{ tr.source|safe }} → {{ tr.target|safe }}</li>
+                                                                    {% endfor %}
+                                                                </ul>
+                                                            {% endfor %}
+                                                        </ul>
+                                                    </li>
+                                                {% endfor %}
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </li>
+
+                            {# Case 3: Normal entries (what you already had) #}
+                            {% else %}
+                                {% for rom in hit.roms %}
+                                    <li>
+                                        <strong>{{ rom.headword }}</strong>
+                                        {% if rom.wordclass %} ({{ rom.wordclass }}) {% endif %}
+                                        <ul>
+                                            {% for arab in rom.arabs %}
+                                                {% if arab.header %}
+                                                    <li><em>{{ arab.header|safe }}</em></li>
+                                                {% endif %}
+                                                <ul>
+                                                    {% for tr in arab.translations %}
+                                                        <li>{{ tr.source|safe }} → {{ tr.target|safe }}</li>
+                                                    {% endfor %}
+                                                </ul>
+                                            {% endfor %}
+                                        </ul>
+                                    </li>
+                                {% endfor %}
+                            {% endif %}
+
+                        {% endfor %}
+                    </ul>
+                {% endfor %}
+            {% else %}
+                {% if search_term %}
+                    <p style="text-align: center;" id="noResultsMessage" data-i18n-key="no_results">No results found.</p>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
